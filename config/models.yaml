@@ -1,0 +1,257 @@
+# LLM Version Manager - Central Model Registry
+# This file defines all LLM providers, their current models, and deprecation schedules
+
+providers:
+  openai:
+    name: "OpenAI"
+    api_endpoint: "https://api.openai.com/v1"
+    docs_url: "https://platform.openai.com/docs/models"
+    models:
+      chat:
+        current: "gpt-4o-2024-11-20"
+        latest_alias: "gpt-4o"
+        alternatives:
+          - name: "gpt-4o-mini"
+            version: "gpt-4o-mini-2024-07-18"
+            cost_multiplier: 0.1
+            performance: "fast"
+        deprecated:
+          - name: "gpt-4-turbo"
+            sunset_date: "2025-12-01"
+            replacement: "gpt-4o-2024-11-20"
+      transcription:
+        current: "whisper-1"
+        deprecated: []
+      embedding:
+        current: "text-embedding-3-small"
+        alternatives:
+          - name: "text-embedding-3-large"
+            dimensions: 3072
+            cost_multiplier: 2.0
+        deprecated:
+          - name: "text-embedding-ada-002"
+            sunset_date: "2025-06-01"
+            replacement: "text-embedding-3-small"
+
+  anthropic:
+    name: "Anthropic"
+    api_endpoint: "https://api.anthropic.com/v1"
+    docs_url: "https://docs.anthropic.com/en/docs/models-overview"
+    models:
+      chat:
+        tiers:
+          light:
+            current: "claude-3-5-haiku-20241022"
+            latest_alias: "claude-3-5-haiku-latest"
+            use_case: "Simple translations, basic string operations"
+          standard:
+            current: "claude-3-7-sonnet-20250219"
+            latest_alias: "claude-3-7-sonnet-latest"
+            use_case: "Word generation, categorization, medium complexity"
+          advanced:
+            current: "claude-sonnet-4-20250514"
+            latest_alias: "claude-sonnet-4-6"
+            use_case: "Complex reasoning, conversation, context understanding"
+        deprecated:
+          - name: "claude-3-opus-20240229"
+            sunset_date: "2025-09-01"
+            replacement: "claude-sonnet-4-20250514"
+          - name: "claude-2.1"
+            sunset_date: "2024-12-01"
+            replacement: "claude-3-7-sonnet-20250219"
+
+  google:
+    name: "Google"
+    api_endpoint: "https://generativelanguage.googleapis.com/v1"
+    docs_url: "https://ai.google.dev/models/gemini"
+    models:
+      chat:
+        current: "gemini-1.5-pro"
+        alternatives:
+          - name: "gemini-1.5-flash"
+            cost_multiplier: 0.2
+            performance: "fast"
+        deprecated:
+          - name: "gemini-pro"
+            sunset_date: "2025-03-01"
+            replacement: "gemini-1.5-pro"
+
+# Project configurations
+# Define where each project uses LLMs and how to update them
+projects:
+  medcore-api:
+    name: "Medcore API"
+    path: "/Volumes/Data_Code/medcore_api"
+    language: "python"
+    repo_url: "https://github.com/yourusername/medcore_api"
+    mappings:
+      - id: "medcore-api-chat"
+        purpose: "chat"
+        provider: "openai"
+        tier: "current"
+        locations:
+          - type: "env"
+            file: ".env"
+            key: "OPENAI_MODEL"
+            line_pattern: "OPENAI_MODEL="
+          - type: "env"
+            file: ".env.production"
+            key: "OPENAI_MODEL"
+            line_pattern: "OPENAI_MODEL="
+
+      - id: "medcore-api-chat-rag"
+        purpose: "chat-rag"
+        provider: "anthropic"
+        tier: "advanced"
+        locations:
+          - type: "env"
+            file: ".env"
+            key: "ANTHROPIC_MODEL"
+            line_pattern: "ANTHROPIC_MODEL="
+          - type: "env"
+            file: ".env.production"
+            key: "ANTHROPIC_MODEL"
+            line_pattern: "ANTHROPIC_MODEL="
+
+      - id: "medcore-api-embedding"
+        purpose: "embedding"
+        provider: "openai"
+        tier: "current"
+        locations:
+          - type: "code"
+            file: "app/rag_config.py"
+            line_number: 38
+            pattern: 'EMBEDDING_MODEL: str = "text-embedding-3-small"'
+
+      - id: "medcore-api-legacy-chat"
+        purpose: "chat"
+        provider: "openai"
+        tier: "current"
+        locations:
+          - type: "code"
+            file: "app/services/embeddings_service.py"
+            line_number: 44
+            pattern: "OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5-mini-2025-08-07')"
+
+  medcore-ui:
+    name: "Medcore UI"
+    path: "/Volumes/Data_Code/medcore-js"
+    language: "typescript"
+    mappings:
+      - id: "medcore-ui-transcription"
+        purpose: "transcription"
+        provider: "openai"
+        tier: "current"
+        locations:
+          - type: "code"
+            file: "src/lib/whisper.ts"
+            line_number: 23
+            pattern: "const model = process.env.WHISPER_MODEL || process.env.NEXT_PUBLIC_WHISPER_MODEL || 'gpt-4o-transcribe';"
+
+  incluve-ios:
+    name: "Incluve iOS"
+    path: "/Volumes/Data_Code/IncluveSwiftApp"
+    language: "swift"
+    mappings:
+      - id: "incluve-ios-chat"
+        purpose: "chat"
+        provider: "openai"
+        tier: "current"
+        locations:
+          - type: "code"
+            file: "incluve/Functions/getResponsesFromOpenAI.swift"
+            line_number: 62
+            pattern: 'public let gptModel = "gpt-5.4-nano"'
+
+      - id: "incluve-ios-chat-light"
+        purpose: "chat"
+        provider: "anthropic"
+        tier: "light"
+        locations:
+          - type: "code"
+            file: "incluve/Functions/getResponseFromAnthropic.swift"
+            line_number: 43
+            pattern: 'public let anthropicModelLight = "claude-3-5-haiku-latest"'
+
+      - id: "incluve-ios-chat-standard"
+        purpose: "chat"
+        provider: "anthropic"
+        tier: "standard"
+        locations:
+          - type: "code"
+            file: "incluve/Functions/getResponseFromAnthropic.swift"
+            line_number: 46
+            pattern: 'public let anthropicModelStandard = "claude-3-7-sonnet-20250219"'
+
+      - id: "incluve-ios-chat-advanced"
+        purpose: "chat"
+        provider: "anthropic"
+        tier: "advanced"
+        locations:
+          - type: "code"
+            file: "incluve/Functions/getResponseFromAnthropic.swift"
+            line_number: 49
+            pattern: 'public let anthropicModelAdvanced = "claude-sonnet-4-6"'
+
+  incluve-android:
+    name: "Incluve Android"
+    path: "/Volumes/Data_Code/IncluveAndroidApp"
+    language: "kotlin"
+    mappings:
+      - id: "incluve-android-chat-light"
+        purpose: "chat"
+        provider: "anthropic"
+        tier: "light"
+        locations:
+          - type: "code"
+            file: "app/src/main/java/com/incluve/app/domain/model/LlmConfig.kt"
+            line_number: 10
+            pattern: 'const val ANTHROPIC_MODEL_LIGHT = "claude-sonnet-4-6"'
+
+      - id: "incluve-android-chat-standard"
+        purpose: "chat"
+        provider: "anthropic"
+        tier: "standard"
+        locations:
+          - type: "code"
+            file: "app/src/main/java/com/incluve/app/domain/model/LlmConfig.kt"
+            line_number: 11
+            pattern: 'const val ANTHROPIC_MODEL_STANDARD = "claude-sonnet-4-6"'
+
+      - id: "incluve-android-chat-advanced"
+        purpose: "chat"
+        provider: "anthropic"
+        tier: "advanced"
+        locations:
+          - type: "code"
+            file: "app/src/main/java/com/incluve/app/domain/model/LlmConfig.kt"
+            line_number: 12
+            pattern: 'const val ANTHROPIC_MODEL_ADVANCED = "claude-sonnet-4-6"'
+
+      - id: "incluve-android-fallback"
+        purpose: "chat"
+        provider: "openai"
+        tier: "current"
+        locations:
+          - type: "code"
+            file: "app/src/main/java/com/incluve/app/domain/model/LlmConfig.kt"
+            line_number: 23
+            pattern: 'const val OPENAI_MODEL = "gpt-5.4-nano"'
+
+# Monitoring configuration
+monitoring:
+  schedule: "0 9 * * *"  # Run daily at 9 AM
+  notifications:
+    - type: "github_issue"
+      enabled: true
+    - type: "email"
+      enabled: false
+      recipients: []
+    - type: "slack"
+      enabled: false
+      webhook_url: ""
+
+  checks:
+    - check_deprecations: true
+    - check_new_models: true
+    - check_cost_savings: true
